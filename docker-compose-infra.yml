@@ -1,0 +1,155 @@
+name: infra
+services:
+  portainer:
+    profiles: ["infra"]
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.portainer.rule=Host(`portainer.emerson.abc.br`)"
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.service=portainer
+      - traefik.http.routers.portainer.tls=true
+      - traefik.http.routers.portainer.tls.certresolver=le
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+    restart: unless-stopped
+    networks:
+      - mynetwork
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ='America/Sao_Paulo'
+    # ports:
+    #   - 9443:9443
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
+  pihole:
+    profiles: ["infra", "pihole"]
+    container_name: pihole
+    image: pihole/pihole:latest
+    # labels:
+    # - traefik.enable=true
+    # - "traefik.http.routers.pihole.rule=Host(`pihole.emerson.abc.br`)"
+    restart: unless-stopped
+    # For DHCP it is recommended to remove these ports and instead add: network_mode: "host"
+    # ports:
+    # - "53:53/tcp"
+    # - "53:53/udp"
+    # - "67:67/udp" # Only required if you are using Pi-hole as your DHCP server
+    #  - "8053:80/tcp"
+    environment:
+      TZ: "America/Sao_Paulo"
+      DNSSEC: true
+      WEBPASSWORD: "pihole"
+      # ServerIP: '172.19.0.14'
+      WEB_PORT: 8053
+      PIHOLE_DNS_: "127.0.0.1#5053;"
+      # 1.1.1.1;1.0.0.1'
+      IPv6: false
+      DNSMASQ_LISTENING: all
+    volumes:
+      - "/home/emerson/.netflox/pihole/etc-pihole:/etc/pihole"
+      - "/home/emerson/.netflox/pihole/etc-dnsmasq.d:/etc/dnsmasq.d"
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    network_mode: "host"
+    # pihole:
+    # ipv4_address: 172.19.100.14
+    dns:
+      - 127.0.0.1
+      - 1.1.1.1
+    # cap_add:
+    # - NET_ADMIN
+
+  cloudflared-tunnel:
+    profiles: ["infra"]
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: "tunnel --no-autoupdate run --token eyJhIjoiNzA3YjA3YTJmMDk4MGUyN2MyNjU0YjUyNzQ3OTJhMzMiLCJ0IjoiOGFlODYwYzgtMTI0NC00N2RkLWI4ZTYtNzE2OGUxOTZjYmMxIiwicyI6Ik1tVTRaVEZtTTJJdE1EUmlZeTAwTnpKbUxUa3pNMll0T0dKaE1XRmxNREUwWm1NNCJ9"
+    # labels:
+    # - traefik.enable=true
+    # - "traefik.http.routers.cloudflared.rule=Host(`clouldflared.emerson.abc.br`)"
+    # network_mode: "host"
+    # volumes:
+    # - /home/emerson/.netflox/cloudflared:/etc/cloudflared
+    # pihole:
+    # ipv4_address: 172.19.100.13
+  #
+  cloudflared-dns:
+    profiles: ["infra"]
+    container_name: cloudflared-dns
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: "proxy-dns --port 5053"
+    # labels:
+    # - traefik.enable=true
+    # - "traefik.http.routers.cloudflared.rule=Host(`clouldflared.emerson.abc.br`)"
+    network_mode: "host"
+    volumes:
+      - /home/emerson/.netflox/cloudflared:/etc/cloudflared
+    # pihole:
+    # ipv4_address: 172.19.100.13
+
+  heimdall:
+    profiles: ["infra", "heimdall"]
+    image: lscr.io/linuxserver/heimdall:latest
+    container_name: heimdall
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.heimdall.rule=Host(`start.emerson.abc.br`)"
+      - traefik.http.routers.heimdall.entrypoints=websecure
+      - traefik.http.services.heimdall.loadbalancer.server.port=80
+      - traefik.http.routers.heimdall.service=heimdall
+      - traefik.http.routers.heimdall.tls=true
+      - traefik.http.routers.heimdall.tls.certresolver=le
+    volumes:
+      - /home/media/heimdall:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+    networks:
+      - mynetwork
+    # ports:
+    # - 88:80
+    # - 443:443
+    restart: unless-stopped
+
+  homeassistant:
+    profiles: ["homeassistant", "infra"]
+    image: linuxserver/homeassistant:latest
+    container_name: homeassistant
+    restart: unless-stopped
+    network_mode: host
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.homeassistant.rule=Host(`home.emerson.abc.br`)"
+      - traefik.http.routers.homeassistant.entrypoints=websecure
+      - traefik.http.services.homeassistant.loadbalancer.server.port=8123
+      - traefik.http.routers.homeassistant.service=homeassistant
+      - traefik.http.routers.homeassistant.tls=true
+      - traefik.http.routers.homeassistant.tls.certresolver=le
+    volumes:
+      - homeassistant:/config
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
+
+networks:
+  pihole:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.100.0/28
+  mynetwork:
+    external: true
+
+volumes:
+  homeassistant:
+    external: true
+  portainer_data:
+    driver: local

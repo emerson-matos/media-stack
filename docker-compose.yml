@@ -1,4 +1,3 @@
-version: "3.9"
 name: media-stack
 services:
 
@@ -18,7 +17,7 @@ services:
       ## For list of server countries, visit https://raw.githubusercontent.com/qdm12/gluetun/master/internal/storage/servers.json
       ## When VPN_SERVICE_PROVIDER is custom. Comment the below line
       - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Switzerland}
-    
+
       # - FREE_ONLY=on  # Valid with protonvpn only. Value willbe set "on" if using free subscription provided by protonvpn
 
       ## Enable below if VPN_SERVICE_PROVIDER=custom
@@ -41,10 +40,10 @@ services:
 
     networks:
       - mynetwork
-
+      
     devices:
       - /dev/net/tun:/dev/net/tun
-      
+
     # Uncomment/enable below ports if VPN is used/enabled
     # ports:
     #   # qbittorrent ports
@@ -77,9 +76,9 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
       - WEBUI_PORT=5080
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - qbittorrent-config:/config
       - torrent-downloads:/downloads
 
@@ -102,17 +101,17 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
     ports:
       - 7878:7878
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - radarr-config:/config
       - torrent-downloads:/downloads
     restart: "unless-stopped"
 
   sonarr:
     profiles: ["vpn", "no-vpn"]
-    image: linuxserver/sonarr:4.0.16
+    image: lscr.io/linuxserver/sonarr:4.0.16
     container_name: sonarr
     networks:
       - mynetwork   # Comment this line if VPN is enabled
@@ -122,18 +121,42 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - sonarr-config:/config
       - torrent-downloads:/downloads
     ports:
       - 8989:8989
     restart: unless-stopped
 
+  bazarr:
+    container_name: bazarr
+    profiles: ["vpn", "no-vpn"]
+    image: lscr.io/linuxserver/bazarr:latest
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.emerson.abc.br`)"
+      - traefik.http.routers.bazarr.entrypoints=websecure
+      - traefik.http.routers.bazarr.service=bazarr
+      - traefik.http.routers.bazarr.tls=true
+      - traefik.http.routers.bazarr.tls.certresolver=le
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+      # - traefik.http.services.bazarr.loadbalancer.server.passHostHeader=true
+    networks:
+      - mynetwork
+    environment:
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - bazarr-config:/config
+      - torrent-downloads/:/downloads #optional
+    restart: unless-stopped
+
   prowlarr:
     profiles: ["vpn", "no-vpn"]
     container_name: prowlarr
-    image: linuxserver/prowlarr:2.3.0
+    image: lscr.io/linuxserver/prowlarr:2.3.0
 
     # Uncomment below if vpn is enabled
     # depends_on:               # Uncomment this line if vpn is enabled
@@ -146,11 +169,9 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - prowlarr-config:/config
-
-    # Comment below ports if VPN is enabled.
     ports:
       - 9696:9696
     restart: unless-stopped
@@ -169,7 +190,7 @@ services:
     volumes:
       - recommendarr-data:/app/server/data
     ports:
-      - 3000:3000
+      - 43210:3000
     restart: unless-stopped
 
   jellyseerr:
@@ -181,32 +202,98 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - jellyseerr-config:/app/config
-    ports:
-      - 5055:5055
+    # ports:
+      # - 5055:5055
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.jellyseerr.rule=Host(`pedidos.emerson.abc.br`)"
+      - traefik.http.routers.jellyseerr.entrypoints=websecure
+      - traefik.http.services.jellyseerr.loadbalancer.server.port=5055
+      - traefik.http.routers.jellyseerr.service=jellyseerr
+      - traefik.http.routers.jellyseerr.tls=true
+      - traefik.http.routers.jellyseerr.tls.certresolver=le
     restart: unless-stopped
 
   jellyfin:
     profiles: ["vpn", "no-vpn"]
-    image: linuxserver/jellyfin:10.11.4
+    image: lscr.io/linuxserver/jellyfin:10.11.4
     container_name: jellyfin
     networks:
       - mynetwork
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - jellyfin-config:/config
       - torrent-downloads:/data
-  # devices:
-   #  - /dev/videoN:/dev/videoN # Mount GPU device 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: cdi
+              device_ids:
+              - nvidia.com/gpu=all
+              capabilities: [gpu]
     ports:
       - 8096:8096
       - 7359:7359/udp
       - 8920:8920
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyfin.entrypoints=websecure
+      - "traefik.http.routers.jellyfin.rule=Host(`flix.emerson.abc.br`)"
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+      - traefik.http.routers.jellyfin.service=jellyfin-svc
+      - traefik.http.routers.jellyfin.tls=true
+      - traefik.http.routers.jellyfin.tls.certresolver=le
+      - traefik.http.routers.jellyfin.middlewares=jellyfin-mw
+      #### The customResponseHeaders option lists the Header names and values to apply to the response.
+      - "traefik.http.middlewares.jellyfin-mw.headers.customResponseHeaders.X-Robots-Tag=noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex"
+      #### The sslRedirect is set to true, then only allow https requests.
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLRedirect=true
+      #### The sslHost option is the host name that is used to redirect http requests to https.
+      #### This is the exact URL that will be redirected to, so you can remove the :9999 port if using default SSL port
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLHost=flix.emerson.abc.br
+      #### Set sslForceHost to true and set SSLHost to forced requests to use SSLHost even the ones that are already using SSL.
+      #### Note that this uses SSLHost verbatim, so add the port to SSLHost if you are using an alternate port.
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLForceHost=true
+      #### The stsSeconds is the max-age of the Strict-Transport-Security header. If set to 0, would NOT include the header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSSeconds=315360000
+      #### The stsIncludeSubdomains is set to true, the includeSubDomains directive will be
+      #### appended to the Strict-Transport-Security header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSIncludeSubdomains=true
+      #### Set stsPreload to true to have the preload flag appended to the Strict-Transport-Security header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSPreload=true
+      #### Set forceSTSHeader to true, to add the STS header even when the connection is HTTP.
+      - traefik.http.middlewares.jellyfin-mw.headers.forceSTSHeader=true
+      #### Set frameDeny to true to add the X-Frame-Options header with the value of DENY.
+      - traefik.http.middlewares.jellyfin-mw.headers.frameDeny=true
+      #### Set contentTypeNosniff to true to add the X-Content-Type-Options header with the value nosniff.
+      - traefik.http.middlewares.jellyfin-mw.headers.contentTypeNosniff=true
+      #### Set browserXssFilter to true to add the X-XSS-Protection header with the value 1; mode=block.
+      - traefik.http.middlewares.jellyfin-mw.headers.customresponseheaders.X-XSS-PROTECTION=1
+      #### The customFrameOptionsValue allows the X-Frame-Options header value to be set with a custom value. This
+      #### overrides the FrameDeny option.
+      - "traefik.http.middlewares.jellyfin-mw.headers.customFrameOptionsValue='allow-from https://flix.emerson.abc.br'"
+      ## HTTP Service
+      # We define the port here as a port is required, but note that the service is pointing to the service defined in @file
+      # - "traefik.http.routers.jellyfin.service=jellyfin-svc@file"
+      - "traefik.http.services.jellyfin-svc.loadBalancer.server.port=8096"
+      - "traefik.http.services.jellyfin-svc.loadBalancer.passHostHeader=true"
+      ## Redirection of HTTP on port 9999 to HTTPS on port 9999 (consistent protocol)
+      - "traefik.http.routers.jellyfin-insecure.entryPoints=websecure"
+      - "traefik.http.routers.jellyfin-insecure.rule=Host(`flix.emerson.abc.br`)" # OPTIONAL: && PathPrefix(`/jellyfin`)
+      - "traefik.http.routers.jellyfin-insecure.middlewares=jellyfin-insecure-mw"
+      - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.scheme=https"
+      # - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.port=9999" # remove if you are using a default port
+      - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.permanent=false"
+      - "traefik.http.routers.jellyfin-insecure.service=noop@internal"
     restart: unless-stopped
   
   
@@ -243,13 +330,67 @@ services:
 
 volumes:
   torrent-downloads:
-  radarr-config:
-  sonarr-config:
-  prowlarr-config:
-  jellyfin-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/torrent-downloads
+
   qbittorrent-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/qbittorrent-config
+
+  radarr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/radarr-config
+
+  sonarr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/sonarr-config
+
+  bazarr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/bazarr-config
+
+  prowlarr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/prowlarr-config
+
+  jellyfin-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/jellyfin-config
+
   jellyseerr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/jellyseerr-config
+
   recommendarr-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/media/recommendarr-data
   # cleanmyarr-config:
 
 networks:
