@@ -1,21 +1,22 @@
-version: '2'
+version: '3'
 name: nginx
 services:
   nginx:
-    image: jc21/nginx-proxy-manager
+    image: lscr.io/linuxserver/nginx:latest
     container_name: nginx
     networks:
-      - media-stack_mynetwork
+      - media-stack
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Sao_Paulo
     volumes:
-      - /home/emerson/.netflox/nginx/nginx.config:/etc/nginx/conf.d/default.conf:ro
-      - /home/emerson/.netflox/nginx/data:/data
-      - /home/emerson/.netflox/nginx/letsencrypt:/etc/letsencrypt
+      - /home/emerson/.netflox/media-stack/conf.d:/config/nginx/site-confs
     ports:
       - 80:80
-      - 81:81
       - 443:443
     restart: unless-stopped
 
 networks:
-  media-stack_mynetwork:
+  media-stack:
     external: true
