@@ -42,8 +42,8 @@ services:
     # volumes:
       # - /yourpath/yourconfig.conf:/gluetun/config.conf:ro
 
-    networks:
-      - media-stack
+    # networks:
+      # - media-stack
     ports:
       # qbittorrent ports
       # - 5080:5080
@@ -56,13 +56,15 @@ services:
       - 51413:51413
       - 51413:51413/udp
     restart: "unless-stopped"
+
   transmission:
     profiles: ["vpn", "tx", "stack-1"]
     container_name: transmission
     image: lscr.io/linuxserver/transmission:latest
     networks:
       - media-stack
-    # network_mode: service:vpn # Uncomment this line if vpn is enabled
+    # Uncomment this line if vpn is enabled
+    # network_mode: service:vpn
     environment:
       - PUID=1000
       - PGID=1000
@@ -71,32 +73,31 @@ services:
       - PASS=transmission
 
     ## Comment below ports if VPN is enabled.
-    # ports:
-      # - 9091:9091
-      # - 51413:51413
-      # - 51413:51413/udp
+    ports:
+     - 9091:9091
+     - 51413:51413
+     - 51413:51413/udp
     volumes:
-      - "/home/emerson/.netflox/midia/tx-config:/config"
-      - "/home/emerson/.netflox/midia/torrent-downloads:/downloads"
-      - "/home/emerson/.netflox/midia/tx-watch:/watch"
+      - "/media/emerson/.netflox/midia/tx-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
+      - "/media/emerson/.netflox/midia/tx-watch:/watch"
     restart: "unless-stopped"
 
   ## Default credentials of qBittorrent - Username: admin password: adminadmin ##
   ## Change password after install from UI --> Tools --> Options --> WebUI ##
   qbittorrent:
     container_name: qbittorrent
-    profiles: ["qbt", "stack-2"]
+    profiles: ["qbt", "stack-1"]
     image: lscr.io/linuxserver/qbittorrent:4.5.5
     # Unomment below if vpn is enabled
-    depends_on:               # Uncomment this line if vpn is enabled
-      - vpn                   # Uncomment this line if vpn is enabled
+    # depends_on:               # Uncomment this line if vpn is enabled
+      # - vpn                   # Uncomment this line if vpn is enabled
+
+    # network_mode: service:vpn
 
     # Comment below lines if VPN is enabled
     networks:               # Comment this line if vpn is enabled
       - media-stack         # Comment this line if vpn is enabled
-
-    # Unomment below line if vpn is enabled
-    network_mode: service:vpn
 
     environment:
       - PUID=1000
@@ -104,8 +105,8 @@ services:
       - TZ='America/Sao_Paulo'
       - WEBUI_PORT=5080
     volumes:
-      - "/home/emerson/.netflox/midia/qbittorrent-config:/config"
-      - "/home/emerson/.netflox/midia/torrent-downloads:/downloads"
+      - "/media/emerson/.netflox/midia/qbittorrent-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
 
     ## Comment/Disable below ports if VPN is enabled
     ports:
@@ -116,23 +117,24 @@ services:
 
   radarr:
     container_name: radarr
-    image: lscr.io/linuxserver/radarr:5.0.3
+    profiles: ["base", "radarr", "stack-1", "stack-2"]
+    image: lscr.io/linuxserver/radarr:5.8.3
     networks:
       - media-stack
     environment:
       - PUID=1000
       - PGID=1000
       - TZ='America/Sao_Paulo'
-    # ports:
-      # - 7878:7878
+    ports:
+      - 7878:7878
     volumes:
-      - "/home/emerson/.netflox/midia/radarr-config:/config"
-      - "/home/emerson/.netflox/midia/torrent-downloads:/downloads"
+      - "/media/emerson/.netflox/midia/radarr-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
     restart: "unless-stopped"
 
   sonarr:
     profiles: ["base", "sonarr", "stack-1", "stack-2"]
-    image: lscr.io/linuxserver/sonarr:4.0.0-develop
+    image: lscr.io/linuxserver/sonarr:4.0.8
     container_name: sonarr
     networks:
       - media-stack
@@ -141,10 +143,10 @@ services:
       - PGID=1000
       - TZ='America/Sao_Paulo'
     volumes:
-      - "/home/emerson/.netflox/midia/sonarr-config:/config"
-      - "/home/emerson/.netflox/midia/torrent-downloads:/downloads"
-    # ports:
-      # - 8989:8989
+      - "/media/emerson/.netflox/midia/sonarr-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
+    ports:
+      - 8989:8989
     restart: unless-stopped
 
   jackett:
@@ -158,19 +160,39 @@ services:
       - PGID=1000
       - TZ='America/Sao_Paulo'
     volumes:
-      - "/home/emerson/.netflox/midia/jackett-config:/config"
-      - "/home/emerson/.netflox/midia/jackett-blackhole:/downloads"
-    # ports:
-      # - 9117:9117
+      - "/media/emerson/.netflox/midia/jackett-config:/config"
+      - "/media/emerson/.netflox/midia/jackett-blackhole:/downloads"
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+
+  bazarr:
+    container_name: bazarr
+    profiles: ["bazarr", "stack-1", "stack-2"]
+    image: lscr.io/linuxserver/bazarr:latest
+    networks:
+      - media-stack
+    environment:
+      - PUID=1000
+      - PGID=1000
+      # - TZ='Brazil'
+    volumes:
+      - "/media/emerson/.netflox/midia/bazarr-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads/movies:/downloads/movies" #optional
+      - "/media/emerson/.netflox/midia/torrent-downloads/tvshows:/downloads/tvshows" #optional
+    ports:
+      - 6767:6767
     restart: unless-stopped
 
   prowlarr:
     container_name: prowlarr
-    image: lscr.io/linuxserver/prowlarr:1.8.6
+    profiles: ["prowlarr", "stack-1"]
+    image: lscr.io/linuxserver/prowlarr:latest
     # Comment this if vpn is disabled
-    depends_on:
-      - vpn
-    network_mode: service:vpn # Comment this line if vpn is disabled
+    # depends_on:
+      # - vpn
+    # network_mode: service:vpn # Comment this line if vpn is disabled
+
     networks:
       - media-stack
     environment:
@@ -178,7 +200,7 @@ services:
       - PGID=1000
       - TZ='America/Sao_Paulo'
     volumes:
-      - "/home/emerson/.netflox/midia/prowlarr-config:/config"
+      - "/media/emerson/.netflox/midia/prowlarr-config:/config"
 
     # Comment below ports if VPN is enabled.
     ports:
@@ -187,7 +209,7 @@ services:
 
   jellyfin:
     profiles: ["base", "jelly", "stack-1", "stack-2"]
-    image: lscr.io/linuxserver/jellyfin:10.8.11
+    image: lscr.io/linuxserver/jellyfin:10.9.8
     container_name: jellyfin
     networks:
       - media-stack
@@ -197,8 +219,8 @@ services:
       - TZ='America/Sao_Paulo'
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
-      - "/home/emerson/.netflox/midia/jellyfin-config:/config"
-      - "/home/emerson/.netflox/midia/torrent-downloads:/data"
+      - "/media/emerson/.netflox/midia/jellyfin-config:/config"
+      - "/media/emerson/.netflox/midia/torrent-downloads:/data"
     deploy:
       resources:
         reservations:
@@ -208,8 +230,8 @@ services:
               capabilities: [gpu]
     ports:
       - 8096:8096
-      # - 7359:7359/udp
-      # - 8920:8920
+      - 7359:7359/udp
+      - 8920:8920
     restart: unless-stopped
   
   # Doc: https://github.com/navilg/cleanmyarr
@@ -273,84 +295,7 @@ services:
   #    - 32412:32412/udp
   #    - 32413:32413/udp
   #    - 32414:32414/udp
-  portainer:
-    profiles: ["infra"]
-    container_name: portainer
-    image: portainer/portainer:latest
-    restart: unless-stopped
-    networks:
-      - media-stack
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ='America/Sao_Paulo'
-    volumes:
-      - /opt/portainer:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-  # More info at https://github.com/pi-hole/docker-pi-hole/ and https://docs.pi-hole.net/
-  pihole:
-    profiles: ["infra"]
-    container_name: pihole
-    image: pihole/pihole:latest
-    restart: unless-stopped
-    # For DHCP it is recommended to remove these ports and instead add: network_mode: "host"
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      # - "67:67/udp" # Only required if you are using Pi-hole as your DHCP server
-      # - "8053:80/tcp"
-    environment:
-      TZ: 'America/Sao_Paulo'
-      WEBPASSWORD: 'pihole'
-      ServerIP: '172.19.0.14'
-      DNS1: '172.19.0.13#5053'
-      DNS2: ''
-      IPv6: false
-      DNSMASQ_LISTENING: all
-    volumes:
-      - '/home/emerson/.netflox/pihole/etc-pihole:/etc/pihole'
-      - '/home/emerson/.netflox/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
-    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
-    networks:
-      media-stack:
-      pihole:
-        ipv4_address: 172.19.100.14
-    dns:
-      - 127.0.0.1
-      - 1.1.1.1
-    # cap_add:
-      # - NET_ADMIN
-
-  cloudflared:
-    profiles: ["infra"]
-    container_name: cloudflared
-    image: cloudflare/cloudflared
-    restart: unless-stopped
-    command: proxy-dns
-    networks:
-      media-stack:
-      pihole:
-        ipv4_address: 172.19.100.13
-
-  heimdall:
-    profiles: ["infra"]
-    image: lscr.io/linuxserver/heimdall
-    container_name: heimdall
-    volumes:
-      - /home/emerson/.netflox/midia/heimdall:/config
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/Sao_Paulo
-    networks:
-      - media-stack
-    restart: unless-stopped
 
 networks:
-  pihole:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.19.100.0/28
   media-stack:
     external: true
