@@ -4,10 +4,10 @@ services:
 
   # To use/enable VPN, Run this compose file with --profile=vpn. Its highly recommended to use VPN.
   vpn:
-  ## Read https://github.com/qdm12/gluetun/wiki for details on configuring VPN for different service providers.
+    ## Read https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers for details on configuring VPN for your service provider.
     profiles: ["vpn"]
     container_name: vpn
-    image: qmcgaw/gluetun:v3.35.0
+    image: qmcgaw/gluetun:v3.38.0
     cap_add:
       - NET_ADMIN
     environment:
@@ -16,16 +16,13 @@ services:
       - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-protonvpn} # Valid values: nordvpn, expressvpn, protonvpn, surfshark or custom
 
       ## For list of server countries, visit https://raw.githubusercontent.com/qdm12/gluetun/master/internal/storage/servers.json
+      ## When VPN_SERVICE_PROVIDER is custom. Comment the below line
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Switzerland}
 
-      ## SERVER_REGIONS is required for NordVPN and Surfshark VPN. Comment SERVER_COUNTRIES if SERVER_REGIONS is used.
-      # - SERVER_REGIONS=${SERVER_REGIONS:-Netherlands}
-    
-      ## SERVER_COUNTRIES is required for ExpressVPN and ProtonVPN. Comment SERVER_REGIONS if SERVER_COUNTRIES is used.
-      - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Netherlands}
       - FREE_ONLY=on  # Valid with protonvpn only. on if using free service provided by protonvpn
 
       ## Enable below if VPN_SERVICE_PROVIDER=custom
-      # - VPN_TYPE=openvpn # or wireguard. 
+      # - VPN_TYPE=openvpn # or wireguard.
 
       ## If VPN_TYPE is openvpn
       # - OPENVPN_CUSTOM_CONFIG=/gluetun/custom.conf
@@ -86,9 +83,10 @@ services:
   ## Default credentials of qBittorrent - Username: admin password: adminadmin ##
   ## Change password after install from UI --> Tools --> Options --> WebUI ##
   qbittorrent:
+    profiles: ["vpn", "no-vpn"]
     container_name: qbittorrent
-    profiles: ["qbt", "stack-1"]
-    image: lscr.io/linuxserver/qbittorrent:4.5.5
+    image: linuxserver/qbittorrent:4.6.5
+
     # Unomment below if vpn is enabled
     # depends_on:               # Uncomment this line if vpn is enabled
       # - vpn                   # Uncomment this line if vpn is enabled
@@ -116,11 +114,14 @@ services:
     restart: "unless-stopped"
 
   radarr:
+    profiles: ["vpn", "no-vpn"]
     container_name: radarr
-    profiles: ["base", "radarr", "stack-1", "stack-2"]
-    image: lscr.io/linuxserver/radarr:5.8.3
+    image: linuxserver/radarr:5.8.3
     networks:
-      - media-stack
+      - media-stack # Comment this line if VPN is enabled
+    ## Uncomment below lines if VPN is enabled
+    #   mynetwork:
+    #     ipv4_address: ${RADARR_STATIC_CONTAINER_IP} # It should be available IPv4 address in range of docker network `mynetwork` e.g. 172.20.0.2
     environment:
       - PUID=1000
       - PGID=1000
@@ -133,11 +134,14 @@ services:
     restart: "unless-stopped"
 
   sonarr:
-    profiles: ["base", "sonarr", "stack-1", "stack-2"]
-    image: lscr.io/linuxserver/sonarr:4.0.8
+    profiles: ["vpn", "no-vpn"]
+    image: linuxserver/sonarr:4.0.8
     container_name: sonarr
     networks:
-      - media-stack
+      - media-stack # Comment this line if VPN is enabled
+    ## Uncomment below lines if VPN is enabled
+    #   mynetwork:
+    #     ipv4_address: ${SONARR_STATIC_CONTAINER_IP} # It should be available IPv4 address in range of docker network `mynetwork` e.g. 172.20.0.2
     environment:
       - PUID=1000
       - PGID=1000
@@ -150,11 +154,16 @@ services:
     restart: unless-stopped
 
   jackett:
-    profiles: ["jackett", "stack-1"]
+    profiles: ["vpn", "no-vpn"]
     container_name: jackett
-    image: lscr.io/linuxserver/jackett:latest
-    networks:
-      - media-stack
+    image: linuxserver/jackett:1.20.1
+    # Uncomment below if vpn is enabled
+    # depends_on:               # Uncomment this line if vpn is enabled
+    #   - vpn                   # Uncomment this line if vpn is enabled
+    # network_mode: service:vpn # Uncomment this line if vpn is enabled
+
+    networks:               # Comment this line if vpn is enabled
+      - media-stack         # Comment this line if vpn is enabled
     environment:
       - PUID=1000
       - PGID=1000
@@ -185,8 +194,8 @@ services:
     restart: unless-stopped
 
   prowlarr:
+    profiles: ["vpn", "no-vpn"]
     container_name: prowlarr
-    profiles: ["prowlarr", "stack-1"]
     image: lscr.io/linuxserver/prowlarr:latest
     # Comment this if vpn is disabled
     # depends_on:
@@ -207,9 +216,25 @@ services:
       - 9696:9696
     restart: unless-stopped
 
+  jellyseerr:
+    profiles: ["vpn", "no-vpn"]
+    image: fallenbagel/jellyseerr:1.9.2
+    container_name: jellyseerr
+    networks:
+      - mynetwork
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - jellyseerr-config:/app/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+
   jellyfin:
-    profiles: ["base", "jelly", "stack-1", "stack-2"]
-    image: lscr.io/linuxserver/jellyfin:10.9.8
+    profiles: ["vpn", "no-vpn"]
+    image: linuxserver/jellyfin:10.9.8
     container_name: jellyfin
     networks:
       - media-stack
@@ -233,9 +258,10 @@ services:
       - 7359:7359/udp
       - 8920:8920
     restart: unless-stopped
-  
+
   # Doc: https://github.com/navilg/cleanmyarr
   # cleanmyarr:
+  #   profiles: ["vpn", "no-vpn"]
   #   depends_on:
   #     - radarr
   #     - sonarr
@@ -262,39 +288,6 @@ services:
     # - CMA_MONITOR_RADARR=${CMA_MONITOR_RADARR:-""}
     # - CMA_RADARR_URL=${CMA_RADARR_URL:-""}
     # - CMA_RADARR_ENCODED_API_KEY=${CMA_RADARR_ENCODED_API_KEY:-""}
-    # - CMA_RADARR_ENABLE_NOTIFICATION=${CMA_RADARR_ENABLE_NOTIFICATION:-""}
-
-  # plex:
-    #profiles: ["stack-1"]
-    #container_name: plex
-#    image: plexinc/pms-docker:latest
- #   restart: unless-stopped
-  #  networks:
-   #   - media-stack
-#    volumes:
- #     - "/home/emerson/.netflox/midia/plex/database:/config"
-  #    - "/home/emerson/.netflox/midia/torrent-downloads/tvshows:/data/tv"
-   #   - "/home/emerson/.netflox/midia/torrent-downloads/movies:/data/movies"
-#    environment:
- #     PLEX_PUID: 1000
- #     PLEX_PGID: 1000
-  #    VERSION: docker
-  #    TZ: 'America/Sao_Paulo'
-  #    PLEX_CLAIM: claim-_GPdTgDURtg3cdWPpTah
-  #    ADVERTISE_IP: http://192.168.15.10:32400/
-  #  hostname: PlexServer
-  #  devices:
-  #    - /dev/dri:/dev/dri # Mount GPU device
-  #  ports:
-  #    - 32400:32400/tcp
-  #    - 3005:3005/tcp
-  #    - 8324:8324/tcp
-  #    - 32469:32469/tcp
-  #    - 1900:1900/udp
-  #    - 32410:32410/udp
-  #    - 32412:32412/udp
-  #    - 32413:32413/udp
-  #    - 32414:32414/udp
 
 networks:
   media-stack:
