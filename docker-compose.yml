@@ -1,4 +1,3 @@
-version: "3.9"
 name: media-stack
 services:
 
@@ -163,32 +162,9 @@ services:
       - 8989:8989
     restart: unless-stopped
 
-  jackett:
-    profiles: ["vpn", "no-vpn"]
-    container_name: jackett
-    image: linuxserver/jackett:1.20.1
-    # Uncomment below if vpn is enabled
-    # depends_on:               # Uncomment this line if vpn is enabled
-      # vpn:                   # Uncomment this line if vpn is enabled
-      #   condition: service_healthy # Uncomment this line if vpn is enabled
-    # network_mode: service:vpn # Uncomment this line if vpn is enabled
-
-    networks:               # Comment this line if vpn is enabled
-      - media-stack         # Comment this line if vpn is enabled
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ='America/Sao_Paulo'
-    volumes:
-      - "/media/emerson/.netflox/midia/jackett-config:/config"
-      - "/media/emerson/.netflox/midia/jackett-blackhole:/downloads"
-    ports:
-      - 9117:9117
-    restart: unless-stopped
-
   bazarr:
     container_name: bazarr
-    profiles: ["bazarr", "stack-1", "stack-2"]
+    profiles: ["no-vpn", "bazarr", "stack-1", "stack-2"]
     image: lscr.io/linuxserver/bazarr:latest
     networks:
       - media-stack
@@ -198,8 +174,7 @@ services:
       # - TZ='Brazil'
     volumes:
       - "/media/emerson/.netflox/midia/bazarr-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads/movies:/downloads/movies" #optional
-      - "/media/emerson/.netflox/midia/torrent-downloads/tvshows:/downloads/tvshows" #optional
+      - "/media/emerson/.netflox/midia/torrent-downloads/:/downloads" #optional
     ports:
       - 6767:6767
     restart: unless-stopped
@@ -229,16 +204,16 @@ services:
 
   jellyseerr:
     profiles: ["vpn", "no-vpn"]
-    image: fallenbagel/jellyseerr:2.0.1
+    image: fallenbagel/jellyseerr:2.1.0
     container_name: jellyseerr
     networks:
-      - mynetwork
+      - media-stack
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=UTC
+      - TZ='America/Sao_Paulo'
     volumes:
-      - jellyseerr-config:/app/config
+      - /media/emerson/.netflow/midia/jellyseerr-config:/app/config
     ports:
       - 5055:5055
     restart: unless-stopped
@@ -254,6 +229,7 @@ services:
       - PGID=1000
       - TZ='America/Sao_Paulo'
       - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - "/media/emerson/.netflox/midia/jellyfin-config:/config"
       - "/media/emerson/.netflox/midia/torrent-downloads:/data"
