@@ -14,6 +14,16 @@ Stack include VPN, Radarr, Sonarr, Prowlarr, qBittorrent, Jellyseerr and Jellyfi
 
 ## Install media stack
 
+
+> **WARNING for armv7 users:** Breaking changes in Jellyseerr version 2.0.x. Jellyseerr 2.0.x have dropped the support for armv7 container image. Support for arm64 is still present. If you are using media stack on armv7, You may need to use Jellyseerr v1.9.x until support is back for armv7.
+> Details here: 
+>
+> https://github.com/Fallenbagel/jellyseerr/releases/tag/v2.0.0
+>
+> https://github.com/Fallenbagel/jellyseerr/releases/tag/v2.0.1
+>
+
+
 There are two ways this stack can be deployed.
 
 1. With a VPN (Recommended)
@@ -85,6 +95,7 @@ chown 1000:1000 /downloads/movies /downloads/tvshows
 
 - Open Radarr at http://localhost:7878
 - Settings --> Media Management --> Check mark "Movies deleted from disk are automatically unmonitored in Radarr" under File management section --> Save
+- Settings --> Media Management --> Scroll to bottom --> Add Root Folder --> Browse to /downloads/movies --> OK
 - Settings --> Download clients --> qBittorrent --> Add Host (qbittorrent) and port (5080) --> Username and password --> Test --> Save **Note: If VPN is enabled, then qbittorrent is reachable on vpn's service name. In this case use `vpn` in Host field.**
 - Settings --> General --> Enable advance setting --> Select Authentication and add username and password
 - Indexer will get automatically added during configuration of Prowlarr. See 'Configure Prowlarr' section.
