@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.2
     container_name: traefik
     command:
       - --api.dashboard=true
@@ -8,19 +8,25 @@ services:
       - --providers.docker=true
       - --accesslog=true
       - --providers.docker.exposedbydefault=false
+      - --log.level=DEBUG
+      # - --traefik.frontend.rule=Host:monitor.`${DOMAIN}`
       - --providers.docker.network=media-stack
       - --providers.docker.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      # - --certificatesresolvers.le.acme.email=${LE_EMAIL}
-      # - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.email=${LE_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.dnsChallenge=true
+      - --certificatesresolvers.le.acme.dnsChallenge.provider=cloudflare
+      - --certificatesresolvers.le.acme.dnsChallenge.resolvers=1.1.1.1:53,8.8.8.8:53
+      - --certificatesresolvers.le.acme.dnsChallenge.delayBeforeCheck=2s
       # - --certificatesresolvers.le.acme.httpChallenge.entrypoint=web
-      # - --certificatesresolvers.le.acme.httpChallenge=true
-      # - "--certificatesresolvers.le.acme.preferredChain=ISRG Root X1"
+      - --certificatesresolvers.le.acme.httpChallenge=true
+      - "--certificatesresolvers.le.acme.preferredChain=ISRG Root X1"
     restart: unless-stopped
     ports:
       - 80:80
-      - 18080:8080
+      - 8080:8080
       - 443:443
     labels:
       - traefik.enable=true
@@ -37,6 +43,9 @@ services:
       - traefik-le:/letsencrypt
     networks:
       - media-stack
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
 
 volumes:
   traefik-le:
