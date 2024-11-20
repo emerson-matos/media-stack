@@ -30,19 +30,23 @@ services:
       - 443:443
     labels:
       - traefik.enable=true
+      - traefik.http.routers.traefik.middlewares=frontend
+      - traefik.http.routers.traefik.entrypoints=websecure
       - traefik.http.routers.traefik.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.traefik.service=api@internal
       - traefik.http.routers.traefik.tls=true
       - traefik.http.routers.traefik.tls.certresolver=le
-      - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.services.api.loadbalancer.server.port=8080
       - traefik.http.routers.traefik.tls.domains[0].main=${DOMAIN}
-      - traefik.http.routers.traefik.middlewares=frontend
+      - "traefik.http.routers.traefik.tls.domains[0].sans=*.${DOMAIN}"
+      - traefik.http.services.api.loadbalancer.server.port=8080
       - traefik.http.middlewares.frontend.basicAuth.users=${HASHED_ADMIN_USER_PASS}
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-le:/letsencrypt
     networks:
       - media-stack
+      - financas-backend_default
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
@@ -53,7 +57,10 @@ volumes:
 networks:
   media-stack:
     external: true
-
+  minikube:
+    external: true
+  financas-backend_default:
+    external: true
 # Generate HASHED_ADMIN_USER_PASS using below command
 # htpasswd -B -C 10 -c .htpasswd user1
 # cat .htpasswd | sed -e s/\\$/\\$\\$/g
