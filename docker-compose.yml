@@ -1,6 +1,5 @@
 name: media-stack
 services:
-
   # To use/enable VPN, Run this compose file with --profile=vpn. Its highly recommended to use VPN.
   vpn:
     ## Read https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers for details on configuring VPN for your service provider.
@@ -18,7 +17,7 @@ services:
       ## When VPN_SERVICE_PROVIDER is custom. Comment the below line
       - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Switzerland}
 
-      - FREE_ONLY=on  # Valid with protonvpn only. on if using free service provided by protonvpn
+      - FREE_ONLY=on # Valid with protonvpn only. on if using free service provided by protonvpn
 
       ## Enable below if VPN_SERVICE_PROVIDER=custom
       # - VPN_TYPE=openvpn # or wireguard.
@@ -36,10 +35,10 @@ services:
 
     ## Enable volume if VPN_SERVICE_PROVIDER=custom and VPN_TYPE=openvpn is used
     # volumes:
-      # - /yourpath/yourconfig.conf:/gluetun/config.conf:ro
+    # - /yourpath/yourconfig.conf:/gluetun/config.conf:ro
 
     # networks:
-      # - media-stack
+    # - media-stack
     ports:
       # qbittorrent ports
       # - 5080:5080
@@ -54,7 +53,7 @@ services:
     restart: "unless-stopped"
 
   transmission:
-    profiles: ["vpn", "tx", "stack-1"]
+    profiles: ["vpn", "no-vpn"]
     container_name: transmission
     image: lscr.io/linuxserver/transmission:latest
     # Uncomment this line if vpn is enabled
@@ -69,9 +68,9 @@ services:
       - PASS=transmission
 
     volumes:
-      - "/media/emerson/.netflox/midia/tx-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
-      - "/media/emerson/.netflox/midia/tx-watch:/watch"
+      - "/media/tx-config:/config"
+      - "/media/torrent-downloads:/downloads"
+      - "/media/tx-watch:/watch"
     # # Uncomment below when using VPN in an LXC container
     # # Make sure to mount /dev/net/tun and /dev/net from underlaying host into your LXC.
     # devices:
@@ -79,15 +78,9 @@ services:
 
     # Uncomment/enable below ports if VPN is used/enabled
     ports:
-     - 9091:9091
-     - 51413:51413
-     - 51413:51413/udp
-    #   # qbittorrent ports
-    #   - 5080:5080
-    #   - 6881:6881
-    #   - 6881:6881/udp
-    #   # prowlarr ports
-    #   - 9696:9696
+      - 9091:9091
+      - 51413:51413
+      - 51413:51413/udp
     restart: "unless-stopped"
 
   ## Default credentials of qBittorrent - Username: admin password: adminadmin ##
@@ -99,12 +92,12 @@ services:
 
     # Unomment below if vpn is enabled
     # depends_on:               # Uncomment this line if vpn is enabled
-      # vpn:                   # Uncomment this line if vpn is enabled
-      #   condition: service_healthy # Uncomment this line if vpn is enabled
+    # vpn:                   # Uncomment this line if vpn is enabled
+    #   condition: service_healthy # Uncomment this line if vpn is enabled
 
     # Comment below lines if VPN is enabled
-    networks:               # Comment this line if vpn is enabled
-      - media-stack         # Comment this line if vpn is enabled
+    networks: # Comment this line if vpn is enabled
+      - media-stack # Comment this line if vpn is enabled
 
     environment:
       - PUID=1000
@@ -112,8 +105,8 @@ services:
       - TZ='America/Sao_Paulo'
       - WEBUI_PORT=5080
     volumes:
-      - "/media/emerson/.netflox/midia/qbittorrent-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
+      - "/media/qbittorrent-config:/config"
+      - "/media/torrent-downloads:/downloads"
 
     ## Comment/Disable below ports if VPN is enabled
     ports:
@@ -126,57 +119,72 @@ services:
     profiles: ["vpn", "no-vpn"]
     container_name: radarr
     image: lscr.io/linuxserver/radarr:5.13.1
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.radarr.rule=Host(`radarr.emerson.abc.br`)"
+      - traefik.http.routers.radarr.entrypoints=websecure
+      - traefik.http.routers.radarr.service=radarr
+      - traefik.http.routers.radarr.tls=true
+      - traefik.http.routers.radarr.tls.certresolver=le
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+      # - traefik.http.services.radarr.loadbalancer.server.passHostHeader=true
     networks:
-      - media-stack # Comment this line if VPN is enabled
-    ## Uncomment below lines if VPN is enabled
-    #   mynetwork:
-    #     ipv4_address: ${RADARR_STATIC_CONTAINER_IP} # It should be available IPv4 address in range of docker network `mynetwork` e.g. 172.20.0.2
+      - media-stack
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ='America/Sao_Paulo'
-    ports:
-      - 7878:7878
     volumes:
-      - "/media/emerson/.netflox/midia/radarr-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
+      - /etc/localtime:/etc/localtime:ro
+      - "/media/radarr-config:/config"
+      - "/media/torrent-downloads:/downloads"
     restart: "unless-stopped"
 
   sonarr:
     profiles: ["vpn", "no-vpn"]
     image: linuxserver/sonarr:4.0.10
     container_name: sonarr
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.emerson.abc.br`)"
+      - traefik.http.routers.sonarr.entrypoints=websecure
+      - traefik.http.routers.sonarr.service=sonarr
+      - traefik.http.routers.sonarr.tls=true
+      - traefik.http.routers.sonarr.tls.certresolver=le
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+      # - traefik.http.services.sonarr.loadbalancer.server.passHostHeader=true
     networks:
       - media-stack # Comment this line if VPN is enabled
-    ## Uncomment below lines if VPN is enabled
-    #   mynetwork:
-    #     ipv4_address: ${SONARR_STATIC_CONTAINER_IP} # It should be available IPv4 address in range of docker network `mynetwork` e.g. 172.20.0.2
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ='America/Sao_Paulo'
     volumes:
-      - "/media/emerson/.netflox/midia/sonarr-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads:/downloads"
-    ports:
-      - 8989:8989
+      - /etc/localtime:/etc/localtime:ro
+      - "/media/sonarr-config:/config"
+      - "/media/torrent-downloads:/downloads"
     restart: unless-stopped
 
   bazarr:
     container_name: bazarr
-    profiles: ["no-vpn", "bazarr", "stack-1", "stack-2"]
+    profiles: ["vpn", "no-vpn"]
     image: lscr.io/linuxserver/bazarr:latest
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.emerson.abc.br`)"
+      - traefik.http.routers.bazarr.entrypoints=websecure
+      - traefik.http.routers.bazarr.service=bazarr
+      - traefik.http.routers.bazarr.tls=true
+      - traefik.http.routers.bazarr.tls.certresolver=le
+      - traefik.http.services.bazarr.loadbalancer.server.port=6767
+      # - traefik.http.services.bazarr.loadbalancer.server.passHostHeader=true
     networks:
       - media-stack
     environment:
       - PUID=1000
       - PGID=1000
-      # - TZ='Brazil'
     volumes:
-      - "/media/emerson/.netflox/midia/bazarr-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads/:/downloads" #optional
-    ports:
-      - 6767:6767
+      - /etc/localtime:/etc/localtime:ro
+      - "/media/bazarr-config:/config"
+      - "/media/torrent-downloads/:/downloads" #optional
     restart: unless-stopped
 
   prowlarr:
@@ -185,7 +193,7 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     # Comment this if vpn is disabled
     # depends_on:
-      # - vpn
+    # - vpn
     # network_mode: service:vpn # Comment this line if vpn is disabled
 
     networks:
@@ -193,11 +201,9 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ='America/Sao_Paulo'
     volumes:
-      - "/media/emerson/.netflox/midia/prowlarr-config:/config"
-
-    # Comment below ports if VPN is enabled.
+      - /etc/localtime:/etc/localtime:ro
+      - "/media/prowlarr-config:/config"
     ports:
       - 9696:9696
     restart: unless-stopped
@@ -211,11 +217,19 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ='America/Sao_Paulo'
     volumes:
-      - /media/emerson/.netflow/midia/jellyseerr-config:/app/config
-    ports:
-      - 5055:5055
+      - /etc/localtime:/etc/localtime:ro
+      - /media/jellyseerr-config:/app/config
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.jellyseerr.rule=Host(`pedidos.emerson.abc.br`)"
+      - traefik.http.routers.jellyseerr.entrypoints=websecure
+      - traefik.http.services.jellyseerr.loadbalancer.server.port=5055
+      - traefik.http.routers.jellyseerr.service=jellyseerr
+      - traefik.http.routers.jellyseerr.tls=true
+      - traefik.http.routers.jellyseerr.tls.certresolver=le
+        # ports:
+        # - 5055:5055
     restart: unless-stopped
 
   jellyfin:
@@ -227,12 +241,12 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ='America/Sao_Paulo'
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
-      - "/media/emerson/.netflox/midia/jellyfin-config:/config"
-      - "/media/emerson/.netflox/midia/torrent-downloads:/data"
+      - /etc/localtime:/etc/localtime:ro
+      - "/media/jellyfin-config:/config"
+      - "/media/torrent-downloads:/data"
     deploy:
       resources:
         reservations:
@@ -240,10 +254,61 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    ports:
-      - 8096:8096
-      - 7359:7359/udp
-      - 8920:8920
+    # ports:
+    #   - 8096:8096
+    #   - 7359:7359/udp
+    #   - 8920:8920
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyfin.entrypoints=websecure
+      - "traefik.http.routers.jellyfin.rule=Host(`flix.emerson.abc.br`)"
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+      - traefik.http.routers.jellyfin.service=jellyfin-svc
+      - traefik.http.routers.jellyfin.tls=true
+      - traefik.http.routers.jellyfin.tls.certresolver=le
+      - traefik.http.routers.jellyfin.middlewares=jellyfin-mw
+      #### The customResponseHeaders option lists the Header names and values to apply to the response.
+      - "traefik.http.middlewares.jellyfin-mw.headers.customResponseHeaders.X-Robots-Tag=noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex"
+      #### The sslRedirect is set to true, then only allow https requests.
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLRedirect=true
+      #### The sslHost option is the host name that is used to redirect http requests to https.
+      #### This is the exact URL that will be redirected to, so you can remove the :9999 port if using default SSL port
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLHost=flix.emerson.abc.br
+      #### Set sslForceHost to true and set SSLHost to forced requests to use SSLHost even the ones that are already using SSL.
+      #### Note that this uses SSLHost verbatim, so add the port to SSLHost if you are using an alternate port.
+      - traefik.http.middlewares.jellyfin-mw.headers.SSLForceHost=true
+      #### The stsSeconds is the max-age of the Strict-Transport-Security header. If set to 0, would NOT include the header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSSeconds=315360000
+      #### The stsIncludeSubdomains is set to true, the includeSubDomains directive will be
+      #### appended to the Strict-Transport-Security header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSIncludeSubdomains=true
+      #### Set stsPreload to true to have the preload flag appended to the Strict-Transport-Security header.
+      - traefik.http.middlewares.jellyfin-mw.headers.STSPreload=true
+      #### Set forceSTSHeader to true, to add the STS header even when the connection is HTTP.
+      - traefik.http.middlewares.jellyfin-mw.headers.forceSTSHeader=true
+      #### Set frameDeny to true to add the X-Frame-Options header with the value of DENY.
+      - traefik.http.middlewares.jellyfin-mw.headers.frameDeny=true
+      #### Set contentTypeNosniff to true to add the X-Content-Type-Options header with the value nosniff.
+      - traefik.http.middlewares.jellyfin-mw.headers.contentTypeNosniff=true
+      #### Set browserXssFilter to true to add the X-XSS-Protection header with the value 1; mode=block.
+      - traefik.http.middlewares.jellyfin-mw.headers.customresponseheaders.X-XSS-PROTECTION=1
+      #### The customFrameOptionsValue allows the X-Frame-Options header value to be set with a custom value. This
+      #### overrides the FrameDeny option.
+      - "traefik.http.middlewares.jellyfin-mw.headers.customFrameOptionsValue='allow-from https://flix.emerson.abc.br'"
+      ## HTTP Service
+      # We define the port here as a port is required, but note that the service is pointing to the service defined in @file
+      # - "traefik.http.routers.jellyfin.service=jellyfin-svc@file"
+      - "traefik.http.services.jellyfin-svc.loadBalancer.server.port=8096"
+      - "traefik.http.services.jellyfin-svc.loadBalancer.passHostHeader=true"
+      ## Redirection of HTTP on port 9999 to HTTPS on port 9999 (consistent protocol)
+      - "traefik.http.routers.jellyfin-insecure.entryPoints=websecure"
+      - "traefik.http.routers.jellyfin-insecure.rule=Host(`flix.emerson.abc.br`)" # OPTIONAL: && PathPrefix(`/jellyfin`)
+      - "traefik.http.routers.jellyfin-insecure.middlewares=jellyfin-insecure-mw"
+      - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.scheme=https"
+      # - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.port=9999" # remove if you are using a default port
+      - "traefik.http.middlewares.jellyfin-insecure-mw.redirectscheme.permanent=false"
+      - "traefik.http.routers.jellyfin-insecure.service=noop@internal"
+
     restart: unless-stopped
 
   # Doc: https://github.com/navilg/cleanmyarr
@@ -258,23 +323,23 @@ services:
   #     - mynetwork
   #   volumes:
   #     - cleanmyarr-config:/config
-    # restart: unless-stopped
-    # environment:
-    # - CMA_MAINTENANCE_CYCLE=${CMA_MAINTENANCE_CYCLE:-""}
-    # - CMA_DELETE_AFTER_DAYS=${CMA_DELETE_AFTER_DAYS:-""}
-    # - CMA_ENABLE_EMAIL_NOTIFICATION=${CMA_ENABLE_EMAIL_NOTIFICATION:-""}
-    # - CMA_SMTP_USERNAME=${CMA_SMTP_USERNAME:-""}
-    # - CMA_SMTP_ENCODED_PASSWORD=${CMA_SMTP_ENCODED_PASSWORD:-""}
-    # - CMA_SMTP_TO_EMAILS=${CMA_SMTP_TO_EMAILS:-""}
-    # - CMA_ENABLE_GOTIFY_NOTIFICATION=${CMA_ENABLE_GOTIFY_NOTIFICATION:-""}
-    # - CMA_GOTIFY_URL=${CMA_GOTIFY_URL:-""}
-    # - CMA_GOTIFY_ENCODED_APP_TOKEN=${CMA_GOTIFY_ENCODED_APP_TOKEN:-""}
-    # - CMA_ENABLE_TELEGRAM_NOTIFICATION=${CMA_ENABLE_TELEGRAM_NOTIFICATION:-""}
-    # - CMA_TELEGRAM_ENCODED_BOT_TOKEN=${CMA_TELEGRAM_ENCODED_BOT_TOKEN:-""}
-    # - CMA_TELEGRAM_CHAT_ID=${CMA_TELEGRAM_CHAT_ID:-""}
-    # - CMA_MONITOR_RADARR=${CMA_MONITOR_RADARR:-""}
-    # - CMA_RADARR_URL=${CMA_RADARR_URL:-""}
-    # - CMA_RADARR_ENCODED_API_KEY=${CMA_RADARR_ENCODED_API_KEY:-""}
+  # restart: unless-stopped
+  # environment:
+  # - CMA_MAINTENANCE_CYCLE=${CMA_MAINTENANCE_CYCLE:-""}
+  # - CMA_DELETE_AFTER_DAYS=${CMA_DELETE_AFTER_DAYS:-""}
+  # - CMA_ENABLE_EMAIL_NOTIFICATION=${CMA_ENABLE_EMAIL_NOTIFICATION:-""}
+  # - CMA_SMTP_USERNAME=${CMA_SMTP_USERNAME:-""}
+  # - CMA_SMTP_ENCODED_PASSWORD=${CMA_SMTP_ENCODED_PASSWORD:-""}
+  # - CMA_SMTP_TO_EMAILS=${CMA_SMTP_TO_EMAILS:-""}
+  # - CMA_ENABLE_GOTIFY_NOTIFICATION=${CMA_ENABLE_GOTIFY_NOTIFICATION:-""}
+  # - CMA_GOTIFY_URL=${CMA_GOTIFY_URL:-""}
+  # - CMA_GOTIFY_ENCODED_APP_TOKEN=${CMA_GOTIFY_ENCODED_APP_TOKEN:-""}
+  # - CMA_ENABLE_TELEGRAM_NOTIFICATION=${CMA_ENABLE_TELEGRAM_NOTIFICATION:-""}
+  # - CMA_TELEGRAM_ENCODED_BOT_TOKEN=${CMA_TELEGRAM_ENCODED_BOT_TOKEN:-""}
+  # - CMA_TELEGRAM_CHAT_ID=${CMA_TELEGRAM_CHAT_ID:-""}
+  # - CMA_MONITOR_RADARR=${CMA_MONITOR_RADARR:-""}
+  # - CMA_RADARR_URL=${CMA_RADARR_URL:-""}
+  # - CMA_RADARR_ENCODED_API_KEY=${CMA_RADARR_ENCODED_API_KEY:-""}
 
 networks:
   media-stack:
